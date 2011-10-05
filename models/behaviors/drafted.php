@@ -331,10 +331,6 @@
 				$fields[] = $draftAlias . '.' . $Model->displayField;
 			}
 
-			if(!is_a('Model', $Model->DraftModel)) {
-				return false;
-			}
-
 			$Model->DraftModel->alias = $draftAlias;
 			$options = am(array('limit' => null, 'page' => 1), $options);
 			$all = $Model->DraftModel->find(
@@ -374,10 +370,6 @@
 		 * @return int 0 or 1 - consider boolean
 		 */
 		private function hasDraft(&$Model, $id) {
-			if(!is_a('Model', $Model->DraftModel)){
-				return false;
-			}
-			
 			return $Model->DraftModel->find(
 				'count',
 				array(
