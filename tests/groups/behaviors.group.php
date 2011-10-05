@@ -1,9 +1,9 @@
-<?php 
-class BehaviorsGroupTest extends GroupTest { 
-  var $label = 'Behaviors'; 
-  
-  function behaviorsGroupTest() {    
-    TestManager::addTestCasesFromDirectory($this, APP_TEST_CASES . DS . 'behaviors' );   
-  } 
-} 
-?>
+<?php
+	class BehaviorsGroupTest extends GroupTest {
+
+		public $label = 'Behaviors';
+
+		public function behaviorsGroupTest() {
+			TestManager::addTestCasesFromDirectory($this, App::pluginPath('Companies') . 'tests' . DS . 'cases' . DS . 'behaviors');
+		}
+	}
