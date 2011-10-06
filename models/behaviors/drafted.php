@@ -24,10 +24,19 @@
 
 		private $model_primary_key = 'draft_id';
 
-		private $suffix = '_drafts';
+		private $suffix;
 		
-		private $defaults = array('fields' => null, 'useDbConfig' => null, 'model' => false);
+		private $defaults = array(
+			'fields' => null,
+			'useDbConfig' => null,
+			'model' => false
+		);
 
+		public function __construct() {
+			parent::__construct();
+
+			$this->suffix = Configure::read('Drafted.suffix');
+		}
 		/**
 		 * Configure the behavior through the Model::actsAs property
 		 * If fields are not spesified, string and text fields will be assumed
@@ -51,10 +60,12 @@
 						$this->settings[$Model->alias]['fields'][] = $field;
 					}
 				}
+				
 				if (empty($this->settings[$Model->alias]['fields'])) {
 					$this->settings[$Model->alias]['fields'] = null;
 				}
 			}
+
 			$Model->DraftModel = false;
 			$this->createDraftModel($Model);
 		}
