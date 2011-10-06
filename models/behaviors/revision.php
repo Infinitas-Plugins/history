@@ -1122,7 +1122,7 @@
 				$dbConfig = $Model->useDbConfig;
 			}
 
-			$db = & ConnectionManager::getDataSource($dbConfig);
+			$db = ConnectionManager::getDataSource($dbConfig);
 			if ($Model->useTable) {
 				$shadow_table = $Model->useTable;
 			}
