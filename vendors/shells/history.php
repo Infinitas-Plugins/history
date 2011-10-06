@@ -137,7 +137,8 @@
 
 			$this->interactive(sprintf('Generating revision table %s for %s', $this->__revisionTable(), prettyName($this->CurrentModel->alias)));
 			if($this->CurrentModel->query($this->Db->createSchema($this->Schema))) {
-				return $this->__initRevisionTable();
+				//$this->ClearCache->run();
+				//return $this->__initRevisionTable();
 			}
 
 			return true;
@@ -153,6 +154,7 @@
 				Configure::read('History.behaviorConfig')
 			);
 
+			$this->interactive(sprintf('Initialising revision table %s for %s', $this->__revisionTable(), prettyName($this->CurrentModel->alias)));
 			return $this->CurrentModel->initializeRevisions();
 		}
 
