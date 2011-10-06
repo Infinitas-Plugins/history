@@ -43,7 +43,7 @@
 		 * @return bool see BehaviorCollection::attach()
 		 */
 		private function __attachHistory($event) {
-			if(Configure::read('debug') && !in_array($event->Handler->table . '_revs', $event->Handler->getTables())) {
+			if(Configure::read('debug') && !in_array($event->Handler->table . Configure::read('History.suffix'), $event->Handler->getTables())) {
 				$notice = sprintf(
 					__d('history', 'Trying to attatch Revisioning to %s (%s) but there is no revision table', true),
 					prettyName($event->Handler->alias),

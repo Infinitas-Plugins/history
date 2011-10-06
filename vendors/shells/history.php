@@ -183,7 +183,7 @@
 		 * @return string the name of the revision table
 		 */
 		private function __revisionTable() {
-			return sprintf($this->CurrentModel->tablePrefix . $this->CurrentModel->table . '_revs');
+			return sprintf($this->CurrentModel->tablePrefix . $this->CurrentModel->table . Configure::read('History.suffix'));
 		}
 
 		private function __getTables() {
@@ -192,7 +192,7 @@
 
 			$return = array();
 			foreach($tables as $table) {
-				if(substr($table, -5) == '_revs') {
+				if(substr($table, - strlen(Configure::read('History.suffix'))) == Configure::read('History.suffix')) {
 					$return[] = $table;
 				}
 			}

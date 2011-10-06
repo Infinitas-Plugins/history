@@ -7,5 +7,6 @@
 			),
 			'auto' => true,
 			'useDbConfig' => null
-		)
+		),
+		'suffix' => '_revs'
 	);

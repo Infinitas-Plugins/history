@@ -99,7 +99,6 @@
 	 * @version 2.0.4
 	 */
 	class RevisionBehavior extends ModelBehavior {
-
 		/**
 		 * Behavior settings
 		 *
@@ -107,6 +106,7 @@
 		 * @var array
 		 */
 		public $settings = array();
+		
 		/**
 		 * Shadow table prefix
 		 * Only change this value if it causes table name crashes
@@ -114,7 +114,8 @@
 		 * @access private
 		 * @var string
 		 */
-		private $revision_suffix = '_revs';
+		private $revision_suffix;
+
 		/**
 		 * Defaul setting values
 		 *
@@ -128,12 +129,26 @@
 			'useDbConfig' => null,
 			'model' => null
 		);
+		
 		/**
 		 * Old data, used to detect changes
 		 *
 		 * @var array
 		 */
 		private $oldData = array();
+
+		/**
+		 * @brief making the suffix configurable from the config file
+		 *
+		 * @access public
+		 *
+		 * @return void
+		 */
+		public function __construct() {
+			parent::__construct();
+
+			$this->revision_suffix = Configure::read('History.suffix');
+		}
 
 		/**
 		 * Configure the behavior through the Model::actsAs property
