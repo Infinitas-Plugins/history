@@ -15,6 +15,7 @@
 		 */
 		private $__options = array(
 			'G' => 'generate_revision_tables',
+			'DG' => 'generate_draft_tables',
 			'I' => 'init_revision_tables',
 			'D' => 'delete_revision_tables',
 			'Q' => 'quit'
@@ -38,6 +39,7 @@
 			$this->Infinitas->h1('Infinitas History');
 
 			$this->Infinitas->out('[G]enerate Revision Tables');
+			$this->Infinitas->out('[DG]enerate Draft Tables');
 			$this->Infinitas->out('[I]nit Revision Tables');
 			$this->Infinitas->out('[D]elete Revision Tables');
 			$this->Infinitas->out('[Q]uit');
@@ -103,6 +105,23 @@
 		}
 
 		/**
+		 * @brief generate the tables for a revision table
+		 *
+		 * @access public
+		 *
+		 * @return void
+		 */
+		public function generate_draft_tables() {
+			$plugin = current($this->_selectPlugins());
+			$models = $this->_selectModels($plugin, true);
+
+			foreach($models as $model) {
+				$this->__generateDraftTable($plugin . '.' . $model);
+			}
+			$this->interactive(sprintf('Created %d tables for revision', count($models)));
+		}
+
+		/**
 		 * @brief generate tables for revisions on selected models
 		 *
 		 * This will get the details of the real table and add / remove fields as
@@ -116,26 +135,26 @@
 		 * @return bool output from Model::query()
 		 */
 		private function __generateRevisionTable($model) {
-			if(!$this->__dbConnection($model)) {
+			if(!$this->__dbConnection($model, 'revision')) {
 				return false;
 			}
 
-			$this->Schema->tables[$this->__revisionTable()]['version_id'] = $this->Schema->tables[$this->__revisionTable()][$this->CurrentModel->primaryKey];
-			$this->Schema->tables[$this->__revisionTable()]['version_created'] = array(
+			$this->Schema->tables[$this->__revisionTableName()]['version_id'] = $this->Schema->tables[$this->__revisionTableName()][$this->CurrentModel->primaryKey];
+			$this->Schema->tables[$this->__revisionTableName()]['version_created'] = array(
 				'type' => 'datetime',
 				'null' => 1,
 				'default' => null,
 				'length' => null
 			);
 
-			unset($this->Schema->tables[$this->__revisionTable()][$this->CurrentModel->primaryKey]['key']);
+			unset($this->Schema->tables[$this->__revisionTableName()][$this->CurrentModel->primaryKey]['key']);
 
 			$listOfFieldsToIgnore = array('lft', 'rght');
 			foreach($listOfFieldsToIgnore as $ignore) {
-				unset($this->Schema->tables[$this->__revisionTable()][$ignore]);
+				unset($this->Schema->tables[$this->__revisionTableName()][$ignore]);
 			}
 
-			$this->interactive(sprintf('Generating revision table %s for %s', $this->__revisionTable(), prettyName($this->CurrentModel->alias)));
+			$this->interactive(sprintf('Generating revision table %s for %s', $this->__revisionTableName(), prettyName($this->CurrentModel->alias)));
 			if($this->CurrentModel->query($this->Db->createSchema($this->Schema))) {
 				//$this->ClearCache->run();
 				//return $this->__initRevisionTable();
@@ -145,7 +164,7 @@
 		}
 
 		private function __initRevisionTable($model = null) {
-			if($model && !$this->__dbConnection($model)) {
+			if($model && !$this->__dbConnection($model, 'revision')) {
 				return false;
 			}
 
@@ -154,8 +173,43 @@
 				Configure::read('History.behaviorConfig')
 			);
 
-			$this->interactive(sprintf('Initialising revision table %s for %s', $this->__revisionTable(), prettyName($this->CurrentModel->alias)));
+			$this->interactive(sprintf('Initialising revision table %s for %s', $this->__revisionTableName(), prettyName($this->CurrentModel->alias)));
 			return $this->CurrentModel->initializeRevisions();
+		}
+
+		/**
+		 * @brief generate tables for drafts on selected models
+		 *
+		 * This will get the details of the real to create the draft table for the
+		 * behavior to work
+		 *
+		 * @access private
+		 *
+		 * @param string $model the model that the revision table is for
+		 *
+		 * @return bool output from Model::query()
+		 */
+		private function __generateDraftTable($model) {
+			if(!$this->__dbConnection($model, 'draft')) {
+				return false;
+			}
+
+			$this->Schema->tables[$this->__draftTableName()]['draft_id'] = $this->Schema->tables[$this->__draftTableName()][$this->CurrentModel->primaryKey];
+
+			unset($this->Schema->tables[$this->__draftTableName()][$this->CurrentModel->primaryKey]['key']);
+
+			$listOfFieldsToIgnore = array('lft', 'rght');
+			foreach($listOfFieldsToIgnore as $ignore) {
+				unset($this->Schema->tables[$this->__draftTableName()][$ignore]);
+			}
+
+			$this->interactive(sprintf('Generating draft table %s for %s', $this->__draftTableName(), prettyName($this->CurrentModel->alias)));
+			if($this->CurrentModel->query($this->Db->createSchema($this->Schema))) {
+				//$this->ClearCache->run();
+				//return $this->__initRevisionTable();
+			}
+
+			return true;
 		}
 
 		/**
@@ -167,12 +221,19 @@
 		 *
 		 * @return bool
 		 */
-		private function __dbConnection($model) {
+		private function __dbConnection($model, $type = null) {
 			$this->CurrentModel = ClassRegistry::init($model);
+
+			if($type == 'revision') {
+				$tableName = '__revisionTableName';
+			}
+			else if($type == 'draft') {
+				$tableName = '__draftTableName';
+			}
 
 			$this->Db = ConnectionManager::getDataSource($this->CurrentModel->useDbConfig);
 			$this->Schema = new CakeSchema(array('name' => $this->CurrentModel->useDbConfig, 'connection' => $this->CurrentModel->useDbConfig));
-			$this->Schema->_build(array($this->__revisionTable() => $this->CurrentModel->schema()));
+			$this->Schema->_build(array($this->{$tableName}() => $this->CurrentModel->schema()));
 
 			return true;
 		}
@@ -184,9 +245,21 @@
 		 *
 		 * @return string the name of the revision table
 		 */
-		private function __revisionTable() {
+		private function __revisionTableName() {
 			return sprintf($this->CurrentModel->tablePrefix . $this->CurrentModel->table . Configure::read('History.suffix'));
 		}
+
+		/**
+		 * @breif generate the name for the revision table
+		 *
+		 * @access private
+		 *
+		 * @return string the name of the revision table
+		 */
+		private function __draftTableName() {
+			return sprintf($this->CurrentModel->tablePrefix . $this->CurrentModel->table . Configure::read('Drafted.suffix'));
+		}
+
 
 		private function __getTables() {
 			$Model = new AppModel(null, false, $this->Plugin->useDbConfig);
