@@ -15,6 +15,7 @@
 		 */
 		private $__options = array(
 			'G' => 'generate_revision_tables',
+			'I' => 'init_revision_tables',
 			'D' => 'delete_revision_tables',
 			'Q' => 'quit'
 		);
@@ -30,11 +31,14 @@
 			if(!class_exists('CakeSchema')) {
 				App::import('Core', 'CakeSchema');
 			}
+			App::import('libs', 'ClearCache.ClearCache');
+			$this->ClearCache = new ClearCache();
 			
 			Configure::write('debug', 2);
 			$this->Infinitas->h1('Infinitas History');
 
 			$this->Infinitas->out('[G]enerate Revision Tables');
+			$this->Infinitas->out('[I]nit Revision Tables');
 			$this->Infinitas->out('[D]elete Revision Tables');
 			$this->Infinitas->out('[Q]uit');
 
@@ -68,6 +72,36 @@
 			$this->interactive(sprintf('Created %d tables for revision', count($models)));
 		}
 
+		public function init_revision_tables() {
+			$plugin = current($this->_selectPlugins());
+			$models = $this->_selectModels($plugin, true);
+
+			foreach($models as $model) {
+				$this->__initRevisionTable($plugin . '.' . $model);
+			}
+			$this->interactive(sprintf('Initialised %d tables for revision', count($models)));
+		}
+
+		/**
+		 * @brief delete the tables for a revision table
+		 *
+		 * @access public
+		 *
+		 * @return void
+		 */
+		public function delete_revision_tables() {
+			$Db = ConnectionManager::getDataSource($this->Plugin->useDbConfig);
+			$Schema = new CakeSchema(array('name' => $this->Plugin->useDbConfig, 'connection' => $this->Plugin->useDbConfig));
+
+			$tables = $this->__getTables();
+			foreach($tables as $table) {
+				$Schema->tables = array($table => array());
+				$this->Plugin->query($Db->dropSchema($Schema));
+			}
+
+			$this->interactive(sprintf('Droped %d revision tables', count($tables)));
+		}
+
 		/**
 		 * @brief generate tables for revisions on selected models
 		 *
@@ -82,58 +116,74 @@
 		 * @return bool output from Model::query()
 		 */
 		private function __generateRevisionTable($model) {
-			$Model = ClassRegistry::init($model);
+			if(!$this->__dbConnection($model)) {
+				return false;
+			}
 
-			$revisionTable = sprintf($Model->tablePrefix . $Model->table . '_rev');
-
-			$Db = ConnectionManager::getDataSource($Model->useDbConfig);
-			$Schema = new CakeSchema(array('name' => $Model->useDbConfig, 'connection' => $Model->useDbConfig));
-			$Schema->_build(array($revisionTable => $Model->schema()));
-
-			$listOfFieldsToIgnore = array('lft', 'rght');
-			$Schema->tables[$revisionTable]['version_id'] = $Schema->tables[$revisionTable][$Model->primaryKey];
-			$Schema->tables[$revisionTable]['version_created'] = array(
+			$this->Schema->tables[$this->__revisionTable()]['version_id'] = $this->Schema->tables[$this->__revisionTable()][$this->CurrentModel->primaryKey];
+			$this->Schema->tables[$this->__revisionTable()]['version_created'] = array(
 				'type' => 'datetime',
 				'null' => 1,
 				'default' => null,
 				'length' => null
 			);
-			
-			unset($Schema->tables[$revisionTable][$Model->primaryKey]['key']);
 
+			unset($this->Schema->tables[$this->__revisionTable()][$this->CurrentModel->primaryKey]['key']);
+
+			$listOfFieldsToIgnore = array('lft', 'rght');
 			foreach($listOfFieldsToIgnore as $ignore) {
-				unset($Schema->tables[$revisionTable][$ignore]);
+				unset($this->Schema->tables[$this->__revisionTable()][$ignore]);
 			}
 
-			$config = Configure::read('History.behaviorConfig');
-			$this->interactive(sprintf('Generating revision table %s for %s', $revisionTable, prettyName($Model->alias)));
-			if($Model->query($Db->createSchema($Schema))) {
-				$Model->Behaviors->attach('History.Revision', (array)$config);
-
-				$Model->initializeRevisions();
+			$this->interactive(sprintf('Generating revision table %s for %s', $this->__revisionTable(), prettyName($this->CurrentModel->alias)));
+			if($this->CurrentModel->query($this->Db->createSchema($this->Schema))) {
+				return $this->__initRevisionTable();
 			}
 
 			return true;
 		}
 
-		/**
-		 * @brief delete the tables for a revision table
-		 *
-		 * @access public
-		 *
-		 * @return void
-		 */
-		public function delete_revision_tables() {
-			$Db = ConnectionManager::getDataSource($this->Plugin->useDbConfig);
-			$Schema = new CakeSchema(array('name' => $this->Plugin->useDbConfig, 'connection' => $this->Plugin->useDbConfig));
-			
-			$tables = $this->__getTables();
-			foreach($tables as $table) {
-				$Schema->tables = array($table => array());
-				$this->Plugin->query($Db->dropSchema($Schema));
+		private function __initRevisionTable($model = null) {
+			if($model && !$this->__dbConnection($model)) {
+				return false;
 			}
 
-			$this->interactive(sprintf('Droped %d revision tables', count($tables)));
+			$this->CurrentModel->Behaviors->attach(
+				'History.Revision',
+				Configure::read('History.behaviorConfig')
+			);
+
+			return $this->CurrentModel->initializeRevisions();
+		}
+
+		/**
+		 * @brief set up the connection for the revision table
+		 *
+		 * @access private
+		 * 
+		 * @param string $model the name of a model to load (Model.Plugin format)
+		 *
+		 * @return bool
+		 */
+		private function __dbConnection($model) {
+			$this->CurrentModel = ClassRegistry::init($model);
+
+			$this->Db = ConnectionManager::getDataSource($this->CurrentModel->useDbConfig);
+			$this->Schema = new CakeSchema(array('name' => $this->CurrentModel->useDbConfig, 'connection' => $this->CurrentModel->useDbConfig));
+			$this->Schema->_build(array($this->__revisionTable() => $this->CurrentModel->schema()));
+
+			return true;
+		}
+
+		/**
+		 * @breif generate the name for the revision table
+		 *
+		 * @access private
+		 *
+		 * @return string the name of the revision table
+		 */
+		private function __revisionTable() {
+			return sprintf($this->CurrentModel->tablePrefix . $this->CurrentModel->table . '_revs');
 		}
 
 		private function __getTables() {
@@ -142,7 +192,7 @@
 
 			$return = array();
 			foreach($tables as $table) {
-				if(substr($table, -4) == '_rev') {
+				if(substr($table, -5) == '_revs') {
 					$return[] = $table;
 				}
 			}
