@@ -27,10 +27,15 @@
 		 * @return void
 		 */
 		public function main() {
+			if(!class_exists('CakeSchema')) {
+				App::import('Core', 'CakeSchema');
+			}
+			
 			Configure::write('debug', 2);
 			$this->Infinitas->h1('Infinitas History');
 
 			$this->Infinitas->out('[G]enerate Revision Tables');
+			$this->Infinitas->out('[D]elete Revision Tables');
 			$this->Infinitas->out('[Q]uit');
 
 			$method = strtoupper($this->in(__('What would you like to do?', true), array_keys($this->__options)));
@@ -60,14 +65,23 @@
 			foreach($models as $model) {
 				$this->__generateRevisionTable($plugin . '.' . $model);
 			}
-			$this->interactive('')
+			$this->interactive(sprintf('Created %d tables for revision', count($models)));
 		}
 
+		/**
+		 * @brief generate tables for revisions on selected models
+		 *
+		 * This will get the details of the real table and add / remove fields as
+		 * needed by the revision behavior. It then uses CakeSchema and the DBO
+		 * to generate the tables with the real models connection
+		 *
+		 * @access private
+		 *
+		 * @param string $model the model that the revision table is for
+		 *
+		 * @return bool output from Model::query()
+		 */
 		private function __generateRevisionTable($model) {
-			if(!class_exists('CakeSchema')) {
-				App::import('Core', 'CakeSchema');
-			}
-			
 			$Model = ClassRegistry::init($model);
 
 			$revisionTable = sprintf($Model->tablePrefix . $Model->table . '_rev');
@@ -96,6 +110,29 @@
 		 * @return void
 		 */
 		public function delete_revision_tables() {
+			$Db = ConnectionManager::getDataSource($this->Plugin->useDbConfig);
+			$Schema = new CakeSchema(array('name' => $this->Plugin->useDbConfig, 'connection' => $this->Plugin->useDbConfig));
+			
+			$tables = $this->__getTables();
+			foreach($tables as $table) {
+				$Schema->tables = array($table => array());
+				$this->Plugin->query($Db->dropSchema($Schema));
+			}
 
+			$this->interactive(sprintf('Droped %d revision tables', count($tables)));
+		}
+
+		private function __getTables() {
+			$Model = new AppModel(null, false, $this->Plugin->useDbConfig);
+			$tables = $Model->getTables();
+
+			$return = array();
+			foreach($tables as $table) {
+				if(substr($table, -4) == '_rev') {
+					$return[] = $table;
+				}
+			}
+
+			return $return;
 		}
 	}
