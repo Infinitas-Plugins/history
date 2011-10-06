@@ -1,6 +1,20 @@
 <?php
 	class HistoryEvents extends AppEvents {
 		/**
+		 * @brief set up some configuration variables
+		 *
+		 * @access public
+		 *
+		 * @param Event $event the event that was triggered
+		 * @param array $data data that is passed to the events
+		 * 
+		 * @return void
+		 */
+		public function onSetupConfig($event, $data = null) {
+			Configure::load('History.config');
+		}
+
+		/**
 		 * @brief attach behaviors to models
 		 *
 		 * @access public

@@ -92,14 +92,28 @@
 
 			$listOfFieldsToIgnore = array('lft', 'rght');
 			$Schema->tables[$revisionTable]['version_id'] = $Schema->tables[$revisionTable][$Model->primaryKey];
+			$Schema->tables[$revisionTable]['version_created'] = array(
+				'type' => 'datetime',
+				'null' => 1,
+				'default' => null,
+				'length' => null
+			);
+			
 			unset($Schema->tables[$revisionTable][$Model->primaryKey]['key']);
 
 			foreach($listOfFieldsToIgnore as $ignore) {
 				unset($Schema->tables[$revisionTable][$ignore]);
 			}
 
+			$config = Configure::read('History.behaviorConfig');
 			$this->interactive(sprintf('Generating revision table %s for %s', $revisionTable, prettyName($Model->alias)));
-			return $Model->query($Db->createSchema($Schema));
+			if($Model->query($Db->createSchema($Schema))) {
+				$Model->Behaviors->attach('History.Revision', (array)$config);
+
+				$Model->initializeRevisions();
+			}
+
+			return true;
 		}
 
 		/**
