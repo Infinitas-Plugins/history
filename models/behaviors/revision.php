@@ -1158,7 +1158,8 @@
 
 			$useShadowModel = $this->settings[$Model->alias]['model'];
 			if (is_string($useShadowModel) && App::import('model', $useShadowModel)) {
-				$Model->ShadowModel = new $useShadowModel(false, $shadow_table, $dbConfig);
+				list(, $model) = pluginSplit($useShadowModel);
+				$Model->ShadowModel = new $model(false, $shadow_table, $dbConfig);
 			}
 
 			else {
@@ -1168,6 +1169,17 @@
 			if ($Model->tablePrefix) {
 				$Model->ShadowModel->tablePrefix = $Model->tablePrefix;
 			}
+
+			/*$Model->ShadowModel->Behaviors->detach('Sequence');
+			$Model->ShadowModel->Behaviors->attach(
+				'Libs.Sequence',
+				array(
+					'groupFields' => array(
+						'id'
+					),
+					'orderField' => 'ordering'
+				)
+			);*/
 			
 			$Model->ShadowModel->alias = $Model->alias;
 			$Model->ShadowModel->primaryKey = 'version_id';

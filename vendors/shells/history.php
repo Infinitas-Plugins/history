@@ -138,13 +138,20 @@
 			if(!$this->__dbConnection($model, 'revision')) {
 				return false;
 			}
-
+			
 			$this->Schema->tables[$this->__revisionTableName()]['version_id'] = $this->Schema->tables[$this->__revisionTableName()][$this->CurrentModel->primaryKey];
 			$this->Schema->tables[$this->__revisionTableName()]['version_created'] = array(
 				'type' => 'datetime',
 				'null' => 1,
 				'default' => null,
 				'length' => null
+			);
+
+			$this->Schema->tables[$this->__revisionTableName()]['revision_ordering'] = array(
+				'type' => 'integer',
+				'null' => 1,
+				'default' => null,
+				'length' => 10
 			);
 
 			unset($this->Schema->tables[$this->__revisionTableName()][$this->CurrentModel->primaryKey]['key']);
@@ -173,8 +180,11 @@
 				Configure::read('History.behaviorConfig')
 			);
 
+			$this->CurrentModel->ShadowModel->Behaviors->detach('Sequence');
 			$this->interactive(sprintf('Initialising revision table %s for %s', $this->__revisionTableName(), prettyName($this->CurrentModel->alias)));
-			return $this->CurrentModel->initializeRevisions();
+			$this->CurrentModel->initializeRevisions();
+
+			$this->CurrentModel->ShadowModel->updateAll(array($this->CurrentModel->alias . '.revision_ordering' => 1));
 		}
 
 		/**
